@@ -174,10 +174,15 @@ class ReadOnlyPath(ctk.CTkEntry):
         # بی‌اثر کردن کلیدها می‌گیریم تا کاربر بتواند مسیر را کپی کند.
         self.bind("<Key>", self._block_key)
 
-    @staticmethod
-    def _block_key(event):
-        allowed = {"c", "a", "x", "Left", "Right", "Home", "End", "Tab"}
-        if event.state & 0x4 or event.keysym in allowed:  # Ctrl+…
+    #: کلیدهایی که فقط مکان‌نما را جابه‌جا می‌کنند و متن را عوض نمی‌کنند
+    _NAVIGATION_KEYS = frozenset(
+        {"Left", "Right", "Up", "Down", "Home", "End", "Tab", "ISO_Left_Tab"}
+    )
+
+    @classmethod
+    def _block_key(cls, event):
+        # بیت ۰x4 یعنی کلید Control گرفته شده؛ میان‌برهایی مثل Ctrl+C باید کار کنند
+        if event.state & 0x4 or event.keysym in cls._NAVIGATION_KEYS:
             return None
         return "break"
 
@@ -389,27 +394,31 @@ class StatusLine(ctk.CTkFrame):
     def __init__(self, master) -> None:
         super().__init__(master, fg_color=COLORS.clear)
 
+        # CTkProgressBar همیشه از چپ پر می‌شود. برای اینکه در چیدمان راست‌چین
+        # از راست پر شود، نقش دو رنگ عوض و مقدار وارونه داده می‌شود: بخش
+        # «پرشده» به رنگ زمینه در می‌آید و بخش باقی‌مانده رنگ تأکید می‌گیرد.
         self._bar = ctk.CTkProgressBar(
             self,
             height=4,
             corner_radius=Radius.pill,
-            fg_color=COLORS.inset,
-            progress_color=COLORS.accent,
+            fg_color=COLORS.accent,
+            progress_color=COLORS.inset,
         )
-        self._bar.set(0)
+        self._bar.set(1)
 
         self._message = RTLLabel(self, "", size=Type.caption, color=COLORS.muted)
         self._message.pack(anchor="e", fill="x")
 
     def show_progress(self, fraction: float) -> None:
+        """نوار پیشرفت را نشان می‌دهد؛ ``fraction`` بین ۰ و ۱ است."""
         if not self._bar.winfo_ismapped():
             self._bar.pack(fill="x", pady=(Space.sm, 0))
-        self._bar.set(max(0.0, min(1.0, fraction)))
+        self._bar.set(1.0 - max(0.0, min(1.0, fraction)))
 
     def hide_progress(self) -> None:
         if self._bar.winfo_ismapped():
             self._bar.pack_forget()
-        self._bar.set(0)
+        self._bar.set(1)
 
     def info(self, text: str) -> None:
         self._message.configure(text_color=COLORS.muted)

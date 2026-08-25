@@ -292,17 +292,19 @@ class ExcelProcessor:
     def _build_groups(
         self, column_name: str, include_blanks: bool
     ) -> list[tuple[str, pd.DataFrame]]:
+        """سطرها را بر اساس مقدار ستون گروه‌بندی می‌کند.
+
+        از ``groupby`` استفاده می‌شود تا حتی روی فایل‌های بزرگ هم یک بار
+        پیمایش کافی باشد؛ ``sort=False`` ترتیب اولین ظهور مقادیر را حفظ
+        می‌کند تا خروجی قابل پیش‌بینی بماند.
+        """
         assert self.df is not None
         series = _normalize(self.df[column_name])
 
-        groups: list[tuple[str, pd.DataFrame]] = []
-        seen: list[str] = []
-        for value in series.dropna().drop_duplicates().tolist():
-            label = str(value)
-            if label in seen:
-                continue
-            seen.append(label)
-            groups.append((label, self.df[series == value]))
+        groups: list[tuple[str, pd.DataFrame]] = [
+            (str(value), frame)
+            for value, frame in self.df.groupby(series, sort=False, dropna=True)
+        ]
 
         if include_blanks:
             blank_mask = series.isna()

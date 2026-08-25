@@ -40,6 +40,9 @@ from .components import (
 from .rtl import dialog, fa_digits, fa_number
 from .theme import COLORS, Radius, Size, Space, Type
 
+#: بیشترین طول نام گروه در نوار وضعیت
+_MAX_LABEL_LENGTH = 40
+
 _FILE_TYPES = [
     ("فایل‌های اکسل و CSV", "*.xlsx *.xlsm *.xls *.csv"),
     ("همه فایل‌ها", "*.*"),
@@ -50,9 +53,10 @@ class AppUI(ctk.CTk):
     """پنجره اصلی."""
 
     def __init__(self) -> None:
+        # ثبت قلم باید پیش از راه‌اندازی Tk انجام شود تا در فهرست قلم‌ها دیده شود
+        theme.load_fonts()
         super().__init__()
 
-        theme.load_fonts()
         ctk.set_appearance_mode("system")
         theme.resolve_font_family(self)
 
@@ -62,6 +66,7 @@ class AppUI(ctk.CTk):
         self._events: queue.Queue[tuple] = queue.Queue()
         self._last_output_dir = ""
         self._loaded_summary = ""
+        self._last_header_row = 1
         self._sheet_enabled = False
         self._busy = False
 
@@ -319,12 +324,14 @@ class AppUI(ctk.CTk):
 
     def _load_columns(self, path: str, sheet: str) -> None:
         try:
-            columns = self.processor.load(path, sheet, self._header_row_value())
+            header_row = self._header_row_value()
+            columns = self.processor.load(path, sheet, header_row)
         except ProcessingError as error:
             self._reset_data_state()
             self._status.error(str(error))
             return
 
+        self._last_header_row = header_row
         options = [
             (
                 f"{info.name} — {fa_number(info.unique_count)} گروه"
@@ -341,16 +348,18 @@ class AppUI(ctk.CTk):
         )
         self._column_select.set_options(options, best.name)
 
+        # پوشه خروجی پیش‌فرض باید پیش از به‌روزرسانی وضعیت تنظیم شود، وگرنه
+        # دکمه اجرا با اینکه همه‌چیز آماده است غیرفعال می‌ماند.
+        if not self._output_path.value:
+            self._output_path.set_path(
+                os.path.join(os.path.dirname(path), "خروجی-جداسازی")
+            )
+
         self._loaded_summary = (
             f"{fa_number(self.processor.row_count)} سطر و "
             f"{fa_number(len(columns))} ستون خوانده شد"
         )
         self._update_preview()
-
-        if not self._output_path.value:
-            self._output_path.set_path(
-                os.path.join(os.path.dirname(path), "خروجی-جداسازی")
-            )
 
     def _on_sheet_change(self, sheet: str) -> None:
         path = self._file_path.value
@@ -358,6 +367,11 @@ class AppUI(ctk.CTk):
             self._load_columns(path, sheet)
 
     def _reload_current_file(self) -> None:
+        """فقط وقتی سطر عنوان واقعاً عوض شده باشد فایل را دوباره می‌خواند."""
+        header_row = self._header_row_value()
+        if header_row == self._last_header_row:
+            return
+
         path = self._file_path.value
         sheet = self._sheet_select.value
         if path and sheet and not self._busy:
@@ -485,7 +499,13 @@ class AppUI(ctk.CTk):
 
         self._worker = threading.Thread(
             target=self._run_split,
-            args=(column, output_dir, output_format, single_workbook),
+            args=(
+                column,
+                output_dir,
+                output_format,
+                single_workbook,
+                self._include_blanks.value,
+            ),
             daemon=True,
         )
         self._worker.start()
@@ -496,15 +516,20 @@ class AppUI(ctk.CTk):
         output_dir: str,
         output_format: str,
         single_workbook: bool,
+        include_blanks: bool,
     ) -> None:
-        """در نخ پس‌زمینه اجرا می‌شود؛ نتیجه از طریق صف به رابط کاربری می‌رسد."""
+        """در نخ پس‌زمینه اجرا می‌شود؛ نتیجه از طریق صف به رابط کاربری می‌رسد.
+
+        همه تنظیمات هنگام شروع کپی می‌شوند تا تغییر بعدی آن‌ها روی کاری که
+        در حال اجراست اثر نگذارد.
+        """
         try:
             result = self.processor.split(
                 column,
                 output_dir,
                 output_format=output_format,
                 single_workbook=single_workbook,
-                include_blanks=self._include_blanks.value,
+                include_blanks=include_blanks,
                 progress=lambda done, total, label: self._events.put(
                     ("progress", done, total, label)
                 ),
@@ -534,9 +559,9 @@ class AppUI(ctk.CTk):
         if kind == "progress":
             _, done, total, label = event
             self._status.show_progress(done / total if total else 0)
-            self._status.info(
-                f"{fa_number(done)} از {fa_number(total)} — {label}"
-            )
+            if len(label) > _MAX_LABEL_LENGTH:
+                label = label[: _MAX_LABEL_LENGTH - 1] + "…"
+            self._status.info(f"{fa_number(done)} از {fa_number(total)} — {label}")
 
         elif kind == "done":
             result = event[1]
@@ -558,7 +583,9 @@ class AppUI(ctk.CTk):
         elif kind == "cancelled":
             self._set_busy(False)
             self._status.hide_progress()
-            self._status.info("عملیات لغو شد.")
+            self._status.info(
+                "عملیات لغو شد؛ فایل‌هایی که تا این لحظه ساخته شده‌اند باقی می‌مانند."
+            )
 
         elif kind == "error":
             self._set_busy(False)
@@ -583,11 +610,27 @@ class AppUI(ctk.CTk):
             fg_color=COLORS.danger if busy else COLORS.accent,
             hover_color=COLORS.danger if busy else COLORS.accent_hover,
         )
-        for widget in (self._file_button, self._output_button):
+        for widget in (
+            self._file_button,
+            self._output_button,
+            self._header_row,
+            self._mode_choice,
+        ):
             widget.configure(state="disabled" if busy else "normal")
+
+        # این سه کنترل شرط فعال بودن مخصوص خودشان را هم دارند
         self._sheet_select.configure(
             state="normal" if self._sheet_enabled and not busy else "disabled"
         )
+        self._column_select.configure(
+            state="normal" if self._column_select.has_options and not busy else "disabled"
+        )
+        self._format_choice.configure(
+            state="disabled"
+            if busy or self._mode_choice.value == "workbook"
+            else "normal"
+        )
+
         if not busy:
             self._refresh_run_state()
 
