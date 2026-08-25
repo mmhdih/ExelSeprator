@@ -6,7 +6,7 @@
 
 APP_NAME = "جداساز اکسل"
 APP_NAME_EN = "Excel Separator"
-APP_VERSION = "2.0.0"
+APP_VERSION = "2.0.1"
 APP_TAGLINE = "فایل اکسل را بر اساس یک ستون، در چند ثانیه به فایل‌های جدا تبدیل کنید."
 APP_URL = "https://github.com/mmhdih/ExelSeprator"
 APP_PUBLISHER = "mmhdih"
