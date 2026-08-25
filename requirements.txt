@@ -1,4 +1,8 @@
-pandas==2.1.0
-numpy<2.0.0
-openpyxl==3.1.2
-customtkinter==5.2.0
+# وابستگی‌های اجرای برنامه
+pandas==2.2.3
+numpy==1.26.4
+openpyxl==3.1.5
+xlrd==2.0.1
+customtkinter==5.2.2
+arabic-reshaper==3.0.1
+python-bidi==0.6.6
