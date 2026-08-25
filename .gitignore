@@ -1,0 +1,29 @@
+# پایتون
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ابزارهای تست
+.pytest_cache/
+.coverage
+htmlcov/
+
+# خروجی بیلد
+build/
+dist/
+*.spec.bak
+
+# سیستم‌عامل و ویرایشگر
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# خروجی خود برنامه هنگام آزمایش
+خروجی-جداسازی/
+
+# فایل تولیدی هنگام بیلد
+packaging/version_info.txt
