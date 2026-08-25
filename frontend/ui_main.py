@@ -15,7 +15,7 @@ from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
-from app_meta import APP_NAME, APP_NAME_EN, APP_TAGLINE, APP_VERSION
+from app_meta import APP_CREDIT, APP_NAME, APP_NAME_EN, APP_TAGLINE, APP_VERSION
 from backend.excel_processor import (
     ExcelProcessor,
     OperationCancelled,
@@ -37,7 +37,7 @@ from .components import (
     StatusLine,
     StepHeader,
 )
-from .rtl import dialog, fa_digits, fa_number
+from .rtl import dialog, fa_number
 from .theme import COLORS, Radius, Size, Space, Type
 
 #: بیشترین طول نام گروه در نوار وضعیت
@@ -281,12 +281,15 @@ class AppUI(ctk.CTk):
             actions, "باز کردن پوشه خروجی", self._open_output_dir, width=170
         )
 
+        # امضا و شماره نسخه عمداً انگلیسی می‌مانند تا همان‌طور که هستند
+        # خوانده شوند؛ به همین دلیل از شکل‌دهی فارسی هم عبور نمی‌کنند.
         RTLLabel(
             actions,
-            f"نسخه {fa_digits(APP_VERSION)}",
+            f"{APP_CREDIT}  —  V{APP_VERSION}",
             size=Type.caption,
             color=COLORS.faint,
             anchor="w",
+            justify="left",
         ).pack(side="left")
 
     # ------------------------------------------------------------------
