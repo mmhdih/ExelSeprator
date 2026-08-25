@@ -15,6 +15,7 @@ from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
+from app_meta import APP_NAME, APP_NAME_EN, APP_TAGLINE, APP_VERSION
 from backend.excel_processor import (
     ExcelProcessor,
     OperationCancelled,
@@ -36,12 +37,8 @@ from .components import (
     StatusLine,
     StepHeader,
 )
-from .rtl import dialog, fa_number
+from .rtl import dialog, fa_digits, fa_number
 from .theme import COLORS, Radius, Size, Space, Type
-
-APP_NAME = "جداساز اکسل"
-APP_TAGLINE = "فایل اکسل را بر اساس یک ستون، در چند ثانیه به فایل‌های جدا تبدیل کنید."
-APP_VERSION = "2.0.0"
 
 _FILE_TYPES = [
     ("فایل‌های اکسل و CSV", "*.xlsx *.xlsm *.xls *.csv"),
@@ -77,7 +74,7 @@ class AppUI(ctk.CTk):
     # ساخت پنجره
     # ------------------------------------------------------------------
     def _configure_window(self) -> None:
-        self.title(f"{APP_NAME} — Excel Separator")
+        self.title(f"{APP_NAME} — {APP_NAME_EN}")
         self.geometry(f"{Size.window_width}x{Size.window_height}")
         self.minsize(Size.min_width, Size.min_height)
         self.configure(fg_color=COLORS.canvas)
@@ -281,7 +278,7 @@ class AppUI(ctk.CTk):
 
         RTLLabel(
             actions,
-            f"نسخه {APP_VERSION}",
+            f"نسخه {fa_digits(APP_VERSION)}",
             size=Type.caption,
             color=COLORS.faint,
             anchor="w",

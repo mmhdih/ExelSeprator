@@ -1,35 +1,163 @@
-name: Build Windows Executable
+name: ساخت نسخه پرتابل ویندوز
 
+# با هر کامیت روی هر شاخه، یک نسخه پرتابل ساخته می‌شود.
+# با هر تگ vX.Y.Z، همان نسخه به صورت Release منتشر می‌شود.
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "**" ]
+    tags: [ "v*" ]
   pull_request:
-    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
 
 jobs:
-  build:
-    runs-on: windows-latest
-
+  test:
+    name: تست بک‌اند
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pyinstaller
+      - name: نصب وابستگی‌ها
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
 
-    - name: Build with PyInstaller
-      run: |
-        pyinstaller --noconfirm --onedir --windowed --name "ExcelSeparator" "main.py"
+      - name: اجرای تست‌ها
+        run: python -m pytest tests -q
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ExcelSeparator-Windows
-        path: dist/ExcelSeparator
+  build:
+    name: بیلد پرتابل ویندوز
+    needs: test
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      artifact: ${{ steps.meta.outputs.artifact }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: نصب وابستگی‌ها
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller==6.11.1
+
+      - name: خواندن نسخه برنامه
+        id: meta
+        shell: bash
+        run: |
+          version=$(python -c "import app_meta; print(app_meta.APP_VERSION)")
+          short_sha=$(git rev-parse --short HEAD)
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            artifact="ExcelSeparator-v${version}-portable-x64"
+          else
+            artifact="ExcelSeparator-v${version}-${short_sha}-portable-x64"
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "artifact=${artifact}" >> "$GITHUB_OUTPUT"
+
+      - name: ساخت اطلاعات نسخه فایل exe
+        run: python packaging/make_version_info.py
+
+      - name: بیلد با PyInstaller
+        run: pyinstaller --noconfirm --clean ExcelSeparator.spec
+
+      - name: آماده‌سازی بسته پرتابل
+        shell: pwsh
+        run: |
+          $name = "${{ steps.meta.outputs.artifact }}"
+          New-Item -ItemType Directory -Path "portable" | Out-Null
+          Copy-Item "dist/ExcelSeparator.exe" "portable/$name.exe"
+          $hash = (Get-FileHash "portable/$name.exe" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name.exe" | Out-File -FilePath "portable/$name.exe.sha256" -Encoding ascii
+          $size = [math]::Round((Get-Item "portable/$name.exe").Length / 1MB, 1)
+          Write-Host "ساخته شد: $name.exe ($size MB)"
+          "### نسخه پرتابل ساخته شد" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- فایل: ``$name.exe``" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- حجم: $size مگابایت" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- SHA256: ``$hash``" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: بررسی سلامت فایل خروجی
+        shell: pwsh
+        run: |
+          $exe = Get-Item "portable/${{ steps.meta.outputs.artifact }}.exe"
+          if ($exe.Length -lt 10MB) {
+            throw "حجم فایل خروجی غیرعادی است؛ احتمالاً بیلد ناقص انجام شده."
+          }
+
+      - name: آپلود آرتیفکت
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.artifact }}
+          path: portable/*
+          if-no-files-found: error
+          retention-days: 90
+
+  release:
+    name: انتشار نسخه
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: دریافت آرتیفکت بیلد
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact }}
+          path: portable
+
+      - name: ساخت متن انتشار
+        shell: bash
+        run: |
+          checksum=$(cat portable/*.sha256)
+          cat > release-notes.md <<EOF
+          ## جداساز اکسل — نسخه ${{ needs.build.outputs.version }}
+
+          فایل اکسل را بر اساس مقادیر یک ستون به چند فایل جداگانه تقسیم می‌کند.
+
+          ### دانلود
+          فایل \`${{ needs.build.outputs.artifact }}.exe\` را دانلود و اجرا کنید.
+          نیازی به نصب پایتون یا هیچ پیش‌نیاز دیگری نیست.
+
+          ### امکانات
+          - رابط کاربری کاملاً راست‌چین و فارسی، با تم روشن و تیره
+          - پشتیبانی از xlsx، xlsm، xls و csv با انتخاب شیت و سطر عنوان‌ها
+          - خروجی به صورت چند فایل جدا یا یک فایل اکسل چندشیتی
+          - نام‌گذاری امن فایل‌ها برای ویندوز و جلوگیری از بازنویسی
+          - نمایش پیشرفت و امکان لغو عملیات
+
+          ### SHA256
+          \`\`\`
+          ${checksum}
+          \`\`\`
+          EOF
+
+      - name: انتشار Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: جداساز اکسل ${{ github.ref_name }}
+          body_path: release-notes.md
+          files: portable/*
+          draft: false
+          prerelease: false
