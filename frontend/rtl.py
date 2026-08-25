@@ -34,9 +34,6 @@ _DISABLED = os.environ.get("EXCELSEP_DISABLE_RESHAPE", "").strip() in {"1", "tru
 
 _RTL_CHARS = re.compile(r"[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]")
 
-#: علامت راست‌به‌چپ؛ برای وادار کردن ویجت‌های ورودی به چیدمان راست‌چین
-RLM = "\u200f"
-
 
 def is_available() -> bool:
     """آیا کتابخانه‌های شکل‌دهی متن در دسترس هستند؟"""
@@ -63,11 +60,6 @@ def shape(text: object) -> str:
         return get_display(reshaped, base_dir="R")
     except Exception:  # pragma: no cover - هیچ‌وقت نباید UI را بشکند
         return value
-
-
-def shape_lines(text: str) -> str:
-    """نسخه چندخطی :func:`shape`؛ هر خط جداگانه پردازش می‌شود."""
-    return "\n".join(shape(line) for line in str(text).split("\n"))
 
 
 _PERSIAN_DIGITS = str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")
@@ -109,7 +101,6 @@ def path_for_display(path: str, max_length: int = 58) -> str:
 
 
 __all__ = [
-    "RLM",
     "dialog",
     "fa_digits",
     "fa_number",
@@ -117,5 +108,4 @@ __all__ = [
     "is_available",
     "path_for_display",
     "shape",
-    "shape_lines",
 ]

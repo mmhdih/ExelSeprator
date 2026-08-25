@@ -174,11 +174,6 @@ class ExcelProcessor:
     def row_count(self) -> int:
         return 0 if self.df is None else int(len(self.df))
 
-    def column_names(self) -> list[str]:
-        if self.df is None:
-            return []
-        return [str(column) for column in self.df.columns]
-
     def describe_columns(self) -> list[ColumnInfo]:
         """برای هر ستون تعداد گروه‌های یکتا و مقادیر خالی را محاسبه می‌کند."""
         if self.df is None:

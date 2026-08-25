@@ -157,11 +157,6 @@ def resolve_font_family(root) -> str:
     return _font_family
 
 
-def family() -> str:
-    """خانواده قلم انتخاب‌شده."""
-    return _font_family
-
-
 def font(size: int = 13, weight: str = "normal"):
     """یک شیء قلم CustomTkinter با خانواده انتخاب‌شده می‌سازد."""
     import customtkinter as ctk
@@ -189,7 +184,6 @@ __all__ = [
     "Space",
     "Type",
     "assets_dir",
-    "family",
     "font",
     "load_fonts",
     "resolve_font_family",

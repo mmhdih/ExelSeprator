@@ -197,3 +197,64 @@ def test_csv_input_is_supported(tmp_path):
     processor.load(str(source))
     result = processor.split("شهر", str(tmp_path / "out"))
     assert result.file_count == 2
+
+
+def test_all_blank_column_without_blanks_fails(tmp_path):
+    source = tmp_path / "blank.xlsx"
+    pd.DataFrame({"کد": [None, None, ""], "v": [1, 2, 3]}).to_excel(source, index=False)
+
+    processor = ExcelProcessor()
+    processor.load(str(source))
+    with pytest.raises(ProcessingError):
+        processor.split("کد", str(tmp_path / "out"), include_blanks=False)
+
+
+def test_too_many_groups_for_single_workbook(tmp_path):
+    source = tmp_path / "many.xlsx"
+    pd.DataFrame({"کد": [f"g{i}" for i in range(250)], "v": range(250)}).to_excel(
+        source, index=False
+    )
+
+    processor = ExcelProcessor()
+    processor.load(str(source))
+    with pytest.raises(ProcessingError, match="چندشیتی"):
+        processor.split("کد", str(tmp_path / "out"), single_workbook=True)
+
+
+def test_nested_output_directory_is_created(sample_xlsx, tmp_path):
+    processor = ExcelProcessor()
+    processor.load(sample_xlsx)
+    target = tmp_path / "a" / "b" / "c"
+
+    result = processor.split("شهر", str(target))
+
+    assert target.is_dir()
+    assert result.file_count == 4
+
+
+def test_group_order_follows_first_appearance(tmp_path):
+    source = tmp_path / "order.xlsx"
+    pd.DataFrame({"کد": ["ج", "الف", "ب", "الف"], "v": range(4)}).to_excel(
+        source, index=False
+    )
+
+    processor = ExcelProcessor()
+    processor.load(str(source))
+    result = processor.split("کد", str(tmp_path / "out"))
+
+    names = [os.path.splitext(os.path.basename(p))[0] for p in result.output_paths]
+    assert names == ["ج", "الف", "ب"]
+
+
+def test_numeric_column_values_become_valid_names(tmp_path):
+    source = tmp_path / "num.xlsx"
+    pd.DataFrame({"سال": [1402, 1403, 1402], "v": [1, 2, 3]}).to_excel(
+        source, index=False
+    )
+
+    processor = ExcelProcessor()
+    processor.load(str(source))
+    result = processor.split("سال", str(tmp_path / "out"))
+
+    names = sorted(os.path.basename(p) for p in result.output_paths)
+    assert names == ["1402.xlsx", "1403.xlsx"]
