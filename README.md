@@ -316,7 +316,7 @@ processor.split("شهر", "خروجی", cancel_event=cancel)   # OperationCancel
 | --- | --- | --- |
 | `test` | Ubuntu | اجرای تست‌های موتور پردازش |
 | `build` | Windows | ساخت فایل exe تک‌تکه و محاسبه SHA256 |
-| `release` | Ubuntu | فقط روی تگ `vX.Y.Z`: انتشار Release با فایل ضمیمه |
+| `release` | Ubuntu | روی تگ `vX.Y.Z` یا اجرای دستی: انتشار Release با فایل ضمیمه |
 
 ### به‌صورت دستی (روی ویندوز)
 
@@ -333,14 +333,20 @@ pyinstaller --noconfirm --clean ExcelSeparator.spec
 
 ۱. شماره نسخه را در `app_meta.py` تغییر دهید
 ۲. تغییر را کامیت کنید
-۳. تگ بزنید و پوش کنید:
+۳. یکی از این دو راه را برای انتشار انتخاب کنید:
+
+**با تگ:**
 
 ```bash
 git tag v2.1.0
 git push origin v2.1.0
 ```
 
-بقیه کار خودکار انجام می‌شود.
+**یا از رابط گیت‌هاب:** در بخش Actions روی جریان کار
+«ساخت نسخه پرتابل ویندوز» → **Run workflow** → گزینه
+`publish_release` را تیک بزنید. تگ به‌طور خودکار روی همان کامیت ساخته می‌شود.
+
+در هر دو حالت، فایل exe ساخته و به Release ضمیمه می‌شود.
 
 </div>
 

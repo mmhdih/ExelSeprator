@@ -8,6 +8,11 @@ on:
     tags: [ "v*" ]
   pull_request:
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "انتشار نسخه فعلی به عنوان Release (تگ خودکار ساخته می‌شود)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -63,10 +68,12 @@ jobs:
       - name: خواندن نسخه برنامه
         id: meta
         shell: bash
+        env:
+          PUBLISH_RELEASE: ${{ inputs.publish_release }}
         run: |
           version=$(python -c "import app_meta; print(app_meta.APP_VERSION)")
           short_sha=$(git rev-parse --short HEAD)
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+          if [[ "${GITHUB_REF}" == refs/tags/* || "${PUBLISH_RELEASE}" == "true" ]]; then
             artifact="ExcelSeparator-v${version}-portable-x64"
           else
             artifact="ExcelSeparator-v${version}-${short_sha}-portable-x64"
@@ -114,7 +121,10 @@ jobs:
   release:
     name: انتشار نسخه
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    # روی تگ vX.Y.Z خودکار، یا با اجرای دستی و تیک زدن publish_release
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      inputs.publish_release
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -156,7 +166,10 @@ jobs:
       - name: انتشار Release
         uses: softprops/action-gh-release@v2
         with:
-          name: جداساز اکسل ${{ github.ref_name }}
+          # اگر تگ وجود نداشته باشد، روی همین کامیت ساخته می‌شود
+          tag_name: v${{ needs.build.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: جداساز اکسل نسخه ${{ needs.build.outputs.version }}
           body_path: release-notes.md
           files: portable/*
           draft: false
