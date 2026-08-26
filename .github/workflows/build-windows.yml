@@ -18,8 +18,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: build-${{ github.ref }}
-  cancel-in-progress: true
+  # ران انتشار گروه جداگانه‌ای دارد و لغو هم نمی‌شود، وگرنه یک push معمولی
+  # که کمی دیرتر ساخته شود می‌تواند انتشار نسخه را نیمه‌کاره لغو کند.
+  group: build-${{ github.ref }}-${{ inputs.publish_release && 'release' || 'ci' }}
+  cancel-in-progress: ${{ !inputs.publish_release }}
 
 env:
   PYTHON_VERSION: "3.11"
