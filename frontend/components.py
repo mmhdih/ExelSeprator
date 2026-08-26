@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import webbrowser
 from typing import Callable, Sequence
 
 import customtkinter as ctk
@@ -44,6 +45,45 @@ class RTLLabel(ctk.CTkLabel):
     def set_text(self, text: str) -> None:
         """متن را با شکل‌دهی مجدد جایگزین می‌کند."""
         self.configure(text=shape(text))
+
+
+class LinkLabel(RTLLabel):
+    """برچسبی که با کلیک، نشانی داده‌شده را در مرورگر پیش‌فرض باز می‌کند.
+
+    رنگ در حالت عادی خنثی است و با رفتن نشانگر روی آن به رنگ تأکید
+    درمی‌آید؛ همان رفتاری که کاربر از یک لینک انتظار دارد.
+    """
+
+    def __init__(
+        self,
+        master,
+        text: str,
+        url: str,
+        *,
+        size: int = Type.caption,
+        idle_color=COLORS.muted,
+        **kwargs,
+    ) -> None:
+        super().__init__(master, text, size=size, color=idle_color, **kwargs)
+        self._url = url
+        self._idle_color = idle_color
+
+        self.configure(cursor="hand2")
+        self.bind("<Button-1>", self._open)
+        self.bind("<Enter>", self._on_enter)
+        self.bind("<Leave>", self._on_leave)
+
+    def _on_enter(self, _event=None) -> None:
+        self.configure(text_color=COLORS.accent)
+
+    def _on_leave(self, _event=None) -> None:
+        self.configure(text_color=self._idle_color)
+
+    def _open(self, _event=None) -> None:
+        try:
+            webbrowser.open_new_tab(self._url)
+        except Exception:  # pragma: no cover - نبودن مرورگر نباید برنامه را بشکند
+            pass
 
 
 class Card(ctk.CTkFrame):
@@ -452,6 +492,7 @@ __all__ = [
     "Choice",
     "Divider",
     "GhostButton",
+    "LinkLabel",
     "PrimaryButton",
     "RTLLabel",
     "ReadOnlyPath",

@@ -15,7 +15,14 @@ from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
 
-from app_meta import APP_CREDIT, APP_NAME, APP_NAME_EN, APP_TAGLINE, APP_VERSION
+from app_meta import (
+    APP_CREDIT,
+    APP_LINKS,
+    APP_NAME,
+    APP_NAME_EN,
+    APP_TAGLINE,
+    APP_VERSION,
+)
 from backend.excel_processor import (
     ExcelProcessor,
     OperationCancelled,
@@ -30,6 +37,7 @@ from .components import (
     Choice,
     Divider,
     GhostButton,
+    LinkLabel,
     PrimaryButton,
     RTLLabel,
     ReadOnlyPath,
@@ -281,16 +289,31 @@ class AppUI(ctk.CTk):
             actions, "باز کردن پوشه خروجی", self._open_output_dir, width=170
         )
 
-        # امضا و شماره نسخه عمداً انگلیسی می‌مانند تا همان‌طور که هستند
-        # خوانده شوند؛ به همین دلیل از شکل‌دهی فارسی هم عبور نمی‌کنند.
+        self._build_credit(actions)
+
+    def _build_credit(self, parent) -> None:
+        """امضا، شماره نسخه و لینک‌های ارتباط با سازنده.
+
+        این متن‌ها عمداً انگلیسی می‌مانند و از شکل‌دهی فارسی عبور نمی‌کنند
+        تا همان‌طور که هستند خوانده شوند.
+        """
+        credit = ctk.CTkFrame(parent, fg_color=COLORS.clear)
+        credit.pack(side="left", anchor="s")
+
         RTLLabel(
-            actions,
+            credit,
             f"{APP_CREDIT}  —  V{APP_VERSION}",
             size=Type.caption,
             color=COLORS.faint,
             anchor="w",
             justify="left",
         ).pack(side="left")
+
+        for text, url in APP_LINKS:
+            RTLLabel(
+                credit, "·", size=Type.caption, color=COLORS.faint, anchor="w"
+            ).pack(side="left", padx=Space.sm)
+            LinkLabel(credit, text, url, anchor="w", justify="left").pack(side="left")
 
     # ------------------------------------------------------------------
     # تعامل کاربر
